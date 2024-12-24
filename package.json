@@ -1,0 +1,35 @@
+{
+  "name": "react_project_template",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "deploy:dev": "STAGE=dev cdk deploy",
+    "deploy:prod": "STAGE=prod cdk deploy",
+    "diff:dev": "STAGE=dev cdk diff",
+    "diff:prod": "STAGE=prod cdk diff",
+    "synth:dev": "STAGE=dev cdk synth",
+    "synth:prod": "STAGE=prod cdk synth"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amreltanawy/ReactProjectTemplate.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/amreltanawy/ReactProjectTemplate/issues"
+  },
+  "homepage": "https://github.com/amreltanawy/ReactProjectTemplate#readme",
+  "dependencies": {
+    "@types/node": "^22.10.2",
+    "aws-cdk": "^2.173.2",
+    "aws-cdk-lib": "^2.173.2",
+    "constructs": "^10.4.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}
