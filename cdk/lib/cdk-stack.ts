@@ -7,26 +7,66 @@ import { Construct } from 'constructs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
-
+import * as aws from '@aws-sdk/client-sts';
+import { CertificateStack } from './certificate-stack';
 interface CdkStackProps extends cdk.StackProps {
   stage: string;
+  environmentCredentials?: {
+    accessKeyId?: string;
+    secretAccessKey?: string;
+  };
 }
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: CdkStackProps) {
-    super(scope, id, props);
+
+    const stackProps = {
+      ...props,
+      env: {
+        ...props.env,
+        credentials: props.environmentCredentials ? {
+          accessKeyId: props.environmentCredentials.accessKeyId,
+          secretAccessKey: props.environmentCredentials.secretAccessKey,
+        } : undefined,
+      },
+    };
+    super(scope, id, stackProps);
+
+    const sts = new aws.STS({
+      credentials: stackProps.environmentCredentials ? {
+        accessKeyId: stackProps.environmentCredentials.accessKeyId!,
+        secretAccessKey: stackProps.environmentCredentials.secretAccessKey!
+      } : undefined
+    });
+
+    sts.getCallerIdentity({}, (err, data) => {
+      if (err) console.log("Error", err);
+      else if (data) console.log("Account ID:", data.Account);
+    });
+
 
     const config = {
-      domainName: process.env.CDK_DOMAIN_NAME,
-      hostedZoneId: process.env.CDK_HOSTED_ZONE_ID,
-      bucketName: process.env.CDK_BUCKET_NAME,
-      region: process.env.CDK_REGION,
+      domainName: process.env.CDK_DOMAIN_NAME || '',
+      hostedZoneId: process.env.CDK_HOSTED_ZONE_ID || '',
+      hostedZoneName: process.env.CDK_HOSTED_ZONE_NAME || '',
+      bucketName: process.env.CDK_BUCKET_NAME || '',
+      region: process.env.CDK_REGION || '',
     };
+
     const stage = props.stage;
+
+    const certStack = new CertificateStack(this, 'CertificateStack', {
+      stage: props.stage,
+      domainName: process.env.CDK_DOMAIN_NAME || '',
+      hostedZoneId: process.env.CDK_HOSTED_ZONE_ID || '',
+      hostedZoneName: process.env.CDK_HOSTED_ZONE_NAME || '',
+      certificateArn: process.env.CDK_CERTIFICATE_ARN || ''
+    });
 
     // Add stage suffix to bucket name for different environments
     const bucketName = `${config.bucketName}-${stage}`;
 
+    console.log("\n\n\n\n bucketName", bucketName);
     const bucket = new s3.Bucket(this, 'WebsiteBucket', {
       bucketName: bucketName,
       websiteIndexDocument: 'index.html',
@@ -37,7 +77,7 @@ export class CdkStack extends cdk.Stack {
     });
 
     new s3deploy.BucketDeployment(this, 'DeployWebsite', {
-      sources: [s3deploy.Source.asset('../../.build')],
+      sources: [s3deploy.Source.asset('../../dist')],
       destinationBucket: bucket,
       // Add cache settings based on environment
       cacheControl: stage === 'prod'
@@ -45,16 +85,12 @@ export class CdkStack extends cdk.Stack {
         : [s3deploy.CacheControl.noCache()],
     });
 
-    // Create certificate
-    // Create certificate
-    const certificate = new acm.Certificate(this, 'SiteCertificate', {
-      domainName: stage === 'prod'
-        ? config.domainName
-        : `${stage}.${config.domainName}`,
-      validation: acm.CertificateValidation.fromDns(
-        route53.HostedZone.fromHostedZoneId(this, 'HostedZone', config.hostedZoneId)
-      ),
+    const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'CertHostedZone', {
+      hostedZoneId: config.hostedZoneId,
+      zoneName: config.hostedZoneName
     });
+    // Create certificate
+    const certificate = certStack.certificate;
 
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
@@ -65,20 +101,13 @@ export class CdkStack extends cdk.Stack {
       },
       domainNames: [stage === 'prod'
         ? config.domainName
-        : `${stage}.${config.domainName}`],
+        : `${config.domainName}`],
       certificate,
       defaultRootObject: 'index.html',
     });
 
     // Add environment-specific tags
     cdk.Tags.of(this).add('Environment', stage);
-
-    // Import existing hosted zone
-    const hostedZone = route53.HostedZone.fromHostedZoneId(
-      this,
-      'HostedZone',
-      config.hostedZoneId
-    );
 
     // Create A record
     new route53.ARecord(this, 'SiteAliasRecord', {

@@ -5,29 +5,34 @@
     "cdk": "bin/cdk.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "dotenv -e ../../.env -- tsc",
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "deploy:dev": "STAGE=dev cdk deploy",
-    "deploy:prod": "STAGE=prod cdk deploy",
-    "diff:dev": "STAGE=dev cdk diff",
-    "diff:prod": "STAGE=prod cdk diff",
-    "synth:dev": "STAGE=dev cdk synth",
-    "synth:prod": "STAGE=prod cdk synth"
+    "deploy:dev": "dotenv -e ../../.env -- cdk deploy --profile spree_nimble",
+    "deploy:prod": "dotenv -e ../../.env.prod -- cdk deploy --profile spree_nimble",
+    "diff:dev": "dotenv -e ../../.env.dev -- cdk diff --profile spree_nimble",
+    "diff:prod": "dotenv -e ../../.env.prod -- cdk diff --profile spree_nimble",
+    "synth:dev": "dotenv -e ../../.env -- cdk synth",
+    "synth:prod": "dotenv -e ../../.env.prod -- cdk synth",
+    "debug:env": "dotenv -e ../../.env -- node -e 'console.log(process.env.STAGE)'",
+    "cdk:bootstrap": "dotenv -e ../../.env -- cdk bootstrap --profile spree_nimble",
+    "check:account": "dotenv -e ../../.env -- node check-account.js"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "20.12.7",
+    "aws-cdk": "2.139.1",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
-    "aws-cdk": "2.139.1",
     "ts-node": "^10.9.2",
     "typescript": "~5.4.5"
   },
   "dependencies": {
+    "@aws-sdk/client-sts": "^3.716.0",
     "aws-cdk-lib": "2.139.1",
     "constructs": "^10.0.0",
+    "dotenv-cli": "^8.0.0",
     "source-map-support": "^0.5.21"
   }
 }
