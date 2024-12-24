@@ -4,7 +4,6 @@ import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import { Construct } from 'constructs';
-import * as fs from 'fs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
@@ -17,7 +16,12 @@ export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: CdkStackProps) {
     super(scope, id, props);
 
-    const config = JSON.parse(fs.readFileSync('../config.json', 'utf8'));
+    const config = {
+      domainName: process.env.CDK_DOMAIN_NAME,
+      hostedZoneId: process.env.CDK_HOSTED_ZONE_ID,
+      bucketName: process.env.CDK_BUCKET_NAME,
+      region: process.env.CDK_REGION,
+    };
     const stage = props.stage;
 
     // Add stage suffix to bucket name for different environments
@@ -42,16 +46,14 @@ export class CdkStack extends cdk.Stack {
     });
 
     // Create certificate
-    const certificate = new acm.DnsValidatedCertificate(this, 'SiteCertificate', {
+    // Create certificate
+    const certificate = new acm.Certificate(this, 'SiteCertificate', {
       domainName: stage === 'prod'
         ? config.domainName
         : `${stage}.${config.domainName}`,
-      hostedZone: route53.HostedZone.fromHostedZoneId(
-        this,
-        'HostedZone',
-        config.hostedZoneId
+      validation: acm.CertificateValidation.fromDns(
+        route53.HostedZone.fromHostedZoneId(this, 'HostedZone', config.hostedZoneId)
       ),
-      region: 'us-east-1', // CloudFront requires certificates in us-east-1
     });
 
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
